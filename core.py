@@ -21,11 +21,11 @@ class Languages(Enum):
         raise ValueError
 
 
-class NotSupportLanguage(Exception):
-    pass
-
-class Timeout(Exception):
-    pass
+class Status(Enum):
+    OK = 'ok',
+    ERROR = 'error'
+    TIMEOUT = 'timeout'
+    MEMORY_OVERFLOW = 'memory_overflow'
 
 class DeleteThread(Thread):
     def __init__(self, cid):
@@ -39,6 +39,7 @@ class DeleteThread(Thread):
 def run(code, language):
     name, ext = language.value
 
+    status = Status.OK
     result = None
     cid = (check_output(f'docker run -dt -m {MEMORY}m --cpus {CPUS} --net=none langlang:{name} /bin/sh', shell=True)).decode().rstrip()
 
@@ -52,19 +53,32 @@ def run(code, language):
             raw_output = check_output(f'docker exec {cid} /bin/sh /run.sh', stderr=STDOUT, shell=True, timeout=TIMEOUT)
             result = raw_output.decode().rstrip()
         except CalledProcessError as e:
-            print(f'exit code {e.returncode}')
-            result = e.output.decode().rstrip()
+            if e.returncode == 137:
+                status = Status.MEMORY_OVERFLOW
+            else:
+                result = e.output.decode().rstrip()
+                status = Status.ERROR
         except TimeoutExpired:
-            raise Timeout
+            status = Status.TIMEOUT
     finally:
         if os.path.isfile(f'./temp/{cid}'):
             os.remove(f'./temp/{cid}')
         
         DeleteThread(cid).start()
     
-    return result
+    return status, result
 
 def setup():
     if not os.path.isdir('./temp'):
-        os.makedirs('./temp')
+        print(f'create temp directory')
+        os.mkdir('./temp')
+    
+    images = check_output('docker images langlang --format "{{.Tag}}"', shell=True).decode().rstrip().split('\n')
+
+    for lang in os.listdir('./languages'):
+        if lang not in images:
+            print(f'{lang} not found, building...')
+            check_output(f'docker build -t langlang:{lang} ./languages/{lang}', shell=True)
+            print(f'{lang} built')
+
     
