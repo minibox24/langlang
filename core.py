@@ -11,6 +11,7 @@ class Languages(Enum):
     JAVASCRIPT = ('javascript', 'js')
     TYPESCRIPT = ('typescript', 'ts')
     GO = ('go', 'go')
+    BASH = ('bash', 'sh')
 
     @classmethod
     def find(cls, name):
