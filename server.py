@@ -1,7 +1,14 @@
 from flask import Flask, request, jsonify
 from core import Languages, run, setup
+from subprocess import check_output
 
 app = Flask(__name__)
+
+@app.get('/languages')
+def languages():
+    images = check_output('docker images langlang --format "{{.Tag}}"', shell=True).decode().rstrip().split('\n')
+    return jsonify({'languages': images})
+
 
 @app.post('/eval')
 def run_eval():
