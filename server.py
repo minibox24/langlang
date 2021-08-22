@@ -4,24 +4,31 @@ from subprocess import check_output
 
 app = Flask(__name__)
 
-@app.get('/languages')
+
+@app.get("/languages")
 def languages():
-    images = check_output('docker images langlang --format "{{.Tag}}"', shell=True).decode().rstrip().split('\n')
-    return jsonify({'languages': images})
+    images = (
+        check_output('docker images langlang --format "{{.Tag}}"', shell=True)
+        .decode()
+        .rstrip()
+        .split("\n")
+    )
+    return jsonify({"languages": images})
 
 
-@app.post('/eval')
+@app.post("/eval")
 def run_eval():
-    code = request.json.get('code', '')
+    code = request.json.get("code", "")
 
     try:
-        lang = Languages.find(request.json.get('language'))
+        lang = Languages.find(request.json.get("language"))
     except ValueError:
-        return jsonify({'status': 'error', 'result': 'NOT_SUPPORT_LANGUAGE'}), 400
+        return jsonify({"status": "error", "result": "NOT_SUPPORT_LANGUAGE"}), 400
 
     status, result = run(code, lang)
-    
-    return jsonify({'status': status.value, 'result': result})
+
+    return jsonify({"status": status.value, "result": result})
+
 
 setup()
 app.run()
