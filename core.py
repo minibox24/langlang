@@ -7,8 +7,11 @@ from subprocess import (
     TimeoutExpired,
 )
 from threading import Thread
+from io import BytesIO
 from enum import Enum
 from config import *
+import tarfile
+import time
 import os
 
 
@@ -30,85 +33,108 @@ class Languages(Enum):
 
 
 class Status(Enum):
-    OK = ("ok",)
+    OK = "ok"
     ERROR = "error"
     TIMEOUT = "timeout"
     MEMORY_OVERFLOW = "memory_overflow"
 
 
 class DeleteThread(Thread):
-    def __init__(self, cid):
+    def __init__(self, container):
         Thread.__init__(self)
-        self.cid = cid
+        self.container = container
 
     def run(self):
-        Popen(f"docker stop {self.cid}", stdout=PIPE, shell=True).communicate()
-        Popen(f"docker rm {self.cid}", stdout=PIPE, shell=True).communicate()
+        self.container.remove(force=True)
 
 
-def run(code, language):
+class ExecThread(Thread):
+    def __init__(self, container):
+        Thread.__init__(self, daemon=True)
+
+        self.container = container
+        self.result = None
+        self.exited = False
+
+    def run(self):
+        self.result = self.container.exec_run("/bin/sh /run.sh")
+        self.exited = True
+
+    def join(self, *args):
+        Thread.join(self, *args)
+        return self.result, self.exited
+
+
+def run(client, code, language):
     name, ext = language.value
 
     status = Status.OK
     result = None
-    cid = (
-        (
-            check_output(
-                f"docker run -dt -m {MEMORY}m --cpus {CPUS} --net=none langlang:{name} /bin/sh",
-                shell=True,
-            )
-        )
-        .decode()
-        .rstrip()
+
+    container = client.containers.run(
+        f"langlang:{name}",
+        "/bin/sh",
+        detach=True,
+        tty=True,
+        mem_limit=f"{MEMORY}m",
+        nano_cpus=int(CPUS * 1e9),
+        network_disabled=True,
     )
 
     try:
-        with open(f"./temp/{cid}", "w", encoding="utf8") as f:
-            f.write(code)
+        docker_copy_code(container, f"script.{ext}", code)
 
-        check_output(f"docker cp ./temp/{cid} {cid}:script.{ext}", shell=True)
+        thread = ExecThread(container)
+        thread.start()
+        raw_result, exited = thread.join(TIMEOUT)
 
-        try:
-            raw_output = check_output(
-                f"docker exec {cid} /bin/sh /run.sh",
-                stderr=STDOUT,
-                shell=True,
-                timeout=TIMEOUT,
-            )
-            result = raw_output.decode().rstrip()
-        except CalledProcessError as e:
-            if e.returncode == 137:
-                status = Status.MEMORY_OVERFLOW
-            else:
-                result = e.output.decode().rstrip()
-                status = Status.ERROR
-        except TimeoutExpired:
+        if not exited:
             status = Status.TIMEOUT
-    finally:
-        if os.path.isfile(f"./temp/{cid}"):
-            os.remove(f"./temp/{cid}")
+        else:
+            exit_code, result = raw_result
+            result = result.decode().rstrip()
 
-        DeleteThread(cid).start()
+            if exit_code == 137:
+                status = Status.MEMORY_OVERFLOW
+            elif exit_code != 0:
+                status = Status.ERROR
+    finally:
+        DeleteThread(container).start()
 
     return status, result
 
 
-def setup():
+def docker_copy_code(container, filename, code):
+    stream = BytesIO()
+
+    with tarfile.open(fileobj=stream, mode="w|") as tar:
+        f = BytesIO(code.encode())
+        f.name = filename
+
+        info = tarfile.TarInfo(name=filename)
+        info.mtime = time.time()
+        info.size = len(code)
+
+        tar.addfile(info, f)
+
+    container.put_archive(path="/", data=stream.getvalue())
+
+
+def get_images(client):
+    return list(
+        map(lambda i: i.tags[0].split(":")[1], client.images.list(name="langlang"))
+    )
+
+
+def setup(client):
     if not os.path.isdir("./temp"):
         print(f"create temp directory")
         os.mkdir("./temp")
 
-    images = (
-        check_output('docker images langlang --format "{{.Tag}}"', shell=True)
-        .decode()
-        .rstrip()
-        .split("\n")
-    )
+    images = get_images(client)
 
     for lang in os.listdir("./languages"):
         if lang not in images:
-            print(f"{lang} not found, building...")
-            check_output(
-                f"docker build -t langlang:{lang} ./languages/{lang}", shell=True
-            )
-            print(f"{lang} built")
+            print(f"{lang} not found, building...", end=" ")
+            client.images.build(path=f"./languages/{lang}", tag=f"langlang:{lang}")
+            print("end")
