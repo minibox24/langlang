@@ -107,17 +107,18 @@ def run(client, code, language):
 def docker_copy_code(container, filename, code):
     stream = BytesIO()
 
-    with tarfile.open(fileobj=stream, mode="w|") as tar:
-        f = BytesIO(code.encode())
+    with tarfile.open(fileobj=stream, mode="w|", encoding="utf8") as tar:
+        encoded = code.encode("utf8")
+        f = BytesIO(encoded)
         f.name = filename
 
         info = tarfile.TarInfo(name=filename)
         info.mtime = time.time()
-        info.size = len(code)
+        info.size = len(encoded)
 
         tar.addfile(info, f)
 
-    container.put_archive(path="/", data=stream.getvalue())
+    container.put_archive("/", stream.getvalue())
 
 
 def get_images(client):
