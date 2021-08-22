@@ -1,2 +1,1 @@
-tsc script.ts
-node script.js
+tsc script.ts && node script.js

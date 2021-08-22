@@ -1,2 +1,1 @@
-g++ script.cpp -o program
-./program
+g++ script.cpp -o program && ./program
