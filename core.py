@@ -24,6 +24,7 @@ class Languages(Enum):
     GO = ("go", "go")
     BASH = ("bash", "sh")
     JAVA = ("java", "java")
+    CSHARP = ("csharp", "cs")
 
     @classmethod
     def find(cls, name):

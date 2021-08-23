@@ -1,0 +1,1 @@
+csc -nologo script.cs && mono script.exe
