@@ -23,6 +23,7 @@ class Languages(Enum):
     TYPESCRIPT = ("typescript", "ts")
     GO = ("go", "go")
     BASH = ("bash", "sh")
+    JAVA = ("java", "java")
 
     @classmethod
     def find(cls, name):
