@@ -71,7 +71,7 @@ class ExecThread(Thread):
         return self.result, self.exited
 
 
-def run(client, code, language):
+def run(client, code, language, input_):
     name, ext = language.value
 
     status = Status.OK
@@ -88,7 +88,16 @@ def run(client, code, language):
     )
 
     try:
-        docker_copy_code(container, f"Main.{ext}", code)
+        if input_:
+            files = [
+                make_tarinfo(f"Main.{ext}", code),
+                make_tarinfo("input", input_),
+                make_tarinfo("runInput.sh", "/bin/sh /run.sh < /input"),
+            ]
+
+            container.put_archive("/", make_tarfile(*files))
+        else:
+            docker_copy_code(container, f"Main.{ext}", code)
 
         done_compile = False
 
@@ -109,7 +118,9 @@ def run(client, code, language):
                 done_compile = True
 
         if done_compile:
-            thread = ExecThread(container, "/bin/sh /run.sh")
+            thread = ExecThread(
+                container, f"/bin/sh /{'runInput' if input_ else 'run'}.sh"
+            )
             thread.start()
             raw_result, exited = thread.join(TIMEOUT)
 
@@ -117,6 +128,7 @@ def run(client, code, language):
                 status = Status.TIMEOUT
             else:
                 exit_code, result = raw_result
+                print(str(raw_result)[:1000])
                 result = result.decode().rstrip()
 
                 if exit_code == 137:
@@ -129,21 +141,30 @@ def run(client, code, language):
     return status, result
 
 
-def docker_copy_code(container, filename, code):
+def make_tarinfo(filename, source):
+    encoded = source.encode()
+    f = BytesIO(encoded)
+    f.name = filename
+
+    info = tarfile.TarInfo(name=filename)
+    info.mtime = time.time()
+    info.size = len(encoded)
+
+    return info, f
+
+
+def make_tarfile(*tarinfo):
     stream = BytesIO()
 
     with tarfile.open(fileobj=stream, mode="w|", encoding="utf8") as tar:
-        encoded = code.encode("utf8")
-        f = BytesIO(encoded)
-        f.name = filename
+        for item in tarinfo:
+            tar.addfile(*item)
 
-        info = tarfile.TarInfo(name=filename)
-        info.mtime = time.time()
-        info.size = len(encoded)
+    return stream.getvalue()
 
-        tar.addfile(info, f)
 
-    container.put_archive("/", stream.getvalue())
+def docker_copy_code(container, filename, code):
+    container.put_archive("/", make_tarfile(make_tarinfo(filename, code)))
 
 
 def get_images(client):
