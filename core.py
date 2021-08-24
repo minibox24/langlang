@@ -41,6 +41,7 @@ class Status(Enum):
     ERROR = "error"
     TIMEOUT = "timeout"
     MEMORY_OVERFLOW = "memory_overflow"
+    COMPILE_ERROR = "compile_error"
 
 
 class DeleteThread(Thread):
@@ -89,26 +90,39 @@ def run(client, code, language):
     try:
         docker_copy_code(container, f"Main.{ext}", code)
 
+        done_compile = False
+
         thread = ExecThread(container, "/bin/sh /compile.sh")
         thread.start()
         compile_raw_result, exited = thread.join(TIMEOUT)
 
-        print(f"[COMPILE] {compile_raw_result}\n\n")
-
-        thread = ExecThread(container, "/bin/sh /run.sh")
-        thread.start()
-        raw_result, exited = thread.join(TIMEOUT)
-
         if not exited:
-            status = Status.TIMEOUT
+            status = Status.COMPILE_ERROR
         else:
-            exit_code, result = raw_result
-            result = result.decode().rstrip()
+            compile_exit_code, result = compile_raw_result
+            compile_result = result.decode().rstrip()
 
-            if exit_code == 137:
-                status = Status.MEMORY_OVERFLOW
-            elif exit_code != 0:
-                status = Status.ERROR
+            if compile_exit_code != 0:
+                status = Status.COMPILE_ERROR
+                result = compile_result
+            else:
+                done_compile = True
+
+        if done_compile:
+            thread = ExecThread(container, "/bin/sh /run.sh")
+            thread.start()
+            raw_result, exited = thread.join(TIMEOUT)
+
+            if not exited:
+                status = Status.TIMEOUT
+            else:
+                exit_code, result = raw_result
+                result = result.decode().rstrip()
+
+                if exit_code == 137:
+                    status = Status.MEMORY_OVERFLOW
+                elif exit_code != 0:
+                    status = Status.ERROR
     finally:
         DeleteThread(container).start()
 
