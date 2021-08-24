@@ -1,2 +1,1 @@
-cat script.java > Main.java
-javac Main.java && java Main
+java -Xms1024m -Xmx1920m -Xss512m -Dfile.encoding=UTF-8 Main

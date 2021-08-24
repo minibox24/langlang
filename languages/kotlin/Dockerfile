@@ -1,6 +1,6 @@
 # Some several tips by @aroxu
 
-FROM adoptopenjdk/openjdk16:debian
+FROM adoptopenjdk/openjdk8:debian
 RUN apt update -y && apt install bash -y && \
     apt install wget zip unzip -y && \
     cd /usr/lib && \
@@ -9,4 +9,4 @@ RUN apt update -y && apt install bash -y && \
     rm kotlin-compiler-*.zip && \
     rm -f kotlinc/bin/*.bat
 ENV PATH $PATH:/usr/lib/kotlinc/bin
-COPY run.sh /
+COPY . /

@@ -1,0 +1,1 @@
+g++ Main.cc -o Main -O2 -Wall -lm -static -std=gnu++17

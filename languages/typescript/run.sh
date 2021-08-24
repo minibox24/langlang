@@ -1,1 +1,1 @@
-tsc script.ts && node script.js
+node Main.js

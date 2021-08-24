@@ -1,1 +1,1 @@
-csc -nologo script.cs && mono script.exe
+dotnet /Main/bin/Release/net5.0/Main.dll

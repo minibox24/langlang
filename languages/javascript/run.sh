@@ -1,1 +1,1 @@
-node script.js
+node Main.js

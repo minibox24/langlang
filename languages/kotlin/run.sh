@@ -1,1 +1,1 @@
-kotlinc script.kt -include-runtime -d program.jar && java -jar program.jar
+java -Xms1024m -Xmx1920m -Xss512m -Dfile.encoding=UTF-8 -XX:+UseSerialGC -DONLINE_JUDGE=1 -DBOJ=1 -jar Main.jar

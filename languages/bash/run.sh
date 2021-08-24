@@ -1,1 +1,1 @@
-bash script.sh
+bash Main.sh

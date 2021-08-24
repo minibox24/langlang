@@ -1,1 +1,1 @@
-go run /script.go
+./Main

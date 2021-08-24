@@ -1,2 +1,2 @@
 FROM golang:alpine
-COPY run.sh /
+COPY . /

@@ -1,0 +1,1 @@
+gcc Main.c -o Main -O2 -Wall -lm -static -std=gnu11

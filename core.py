@@ -16,15 +16,17 @@ import os
 
 
 class Languages(Enum):
-    PYTHON = ("python", "py")
-    CPP = ("cpp", "cpp")
-    KOTLIN = ("kotlin", "kt")
-    JAVASCRIPT = ("javascript", "js")
-    TYPESCRIPT = ("typescript", "ts")
-    GO = ("go", "go")
     BASH = ("bash", "sh")
-    JAVA = ("java", "java")
+    C = ("c", "c")
+    CPP = ("cpp", "cc")
     CSHARP = ("csharp", "cs")
+    GO = ("go", "go")
+    JAVA = ("java", "java")
+    JAVASCRIPT = ("javascript", "js")
+    KOTLIN = ("kotlin", "kt")
+    PYTHON = ("python", "py")
+    TEXT = ("text", "txt")
+    TYPESCRIPT = ("typescript", "ts")
 
     @classmethod
     def find(cls, name):
@@ -51,15 +53,16 @@ class DeleteThread(Thread):
 
 
 class ExecThread(Thread):
-    def __init__(self, container):
+    def __init__(self, container, command):
         Thread.__init__(self, daemon=True)
 
         self.container = container
+        self.command = command
         self.result = None
         self.exited = False
 
     def run(self):
-        self.result = self.container.exec_run("/bin/sh /run.sh")
+        self.result = self.container.exec_run(self.command)
         self.exited = True
 
     def join(self, *args):
@@ -84,9 +87,15 @@ def run(client, code, language):
     )
 
     try:
-        docker_copy_code(container, f"script.{ext}", code)
+        docker_copy_code(container, f"Main.{ext}", code)
 
-        thread = ExecThread(container)
+        thread = ExecThread(container, "/bin/sh /compile.sh")
+        thread.start()
+        compile_raw_result, exited = thread.join(TIMEOUT)
+
+        print(f"[COMPILE] {compile_raw_result}\n\n")
+
+        thread = ExecThread(container, "/bin/sh /run.sh")
         thread.start()
         raw_result, exited = thread.join(TIMEOUT)
 
@@ -138,6 +147,6 @@ def setup(client):
 
     for lang in os.listdir("./languages"):
         if lang not in images:
-            print(f"{lang} not found, building...", end=" ")
+            print(f"BUILDING {lang}")
             client.images.build(path=f"./languages/{lang}", tag=f"langlang:{lang}")
-            print("end")
+            print(f"BUILT {lang}")
