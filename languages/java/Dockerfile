@@ -1,4 +1,2 @@
-# Some several tips by @aroxu
-
-FROM adoptopenjdk/openjdk8:debian
+FROM adoptopenjdk/openjdk8:debian-slim
 COPY . /

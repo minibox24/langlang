@@ -1,1 +1,1 @@
-javac -J-Xms1024m -J-Xmx1920m -J-Xss512m -encoding UTF-8 Main.java
+javac Main.java

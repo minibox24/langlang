@@ -1,6 +1,6 @@
 # Some several tips by @aroxu
 
-FROM adoptopenjdk/openjdk8:debian
+FROM adoptopenjdk/openjdk8:debian-slim
 RUN apt update -y && apt install bash -y && \
     apt install wget zip unzip -y && \
     cd /usr/lib && \
