@@ -128,7 +128,6 @@ def run(client, code, language, input_):
                 status = Status.TIMEOUT
             else:
                 exit_code, result = raw_result
-                print(str(raw_result)[:1000])
                 result = result.decode().rstrip()
 
                 if exit_code == 137:
