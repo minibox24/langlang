@@ -1,3 +1,1 @@
-dotnet new console --force -o Main 1> /dev/null && \
-    cp Main.cs /Main/Program.cs && \
-    dotnet publish Main --configuration Release
+cp Main.cs /Main/Program.cs && dotnet build --no-restore Main

@@ -1,1 +1,1 @@
-dotnet /Main/bin/Release/net5.0/Main.dll
+dotnet /Main/bin/Debug/net5.0/Main.dll
