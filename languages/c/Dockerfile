@@ -1,3 +1,3 @@
-FROM alpine
-RUN apk add --no-cache gcc libc-dev
+FROM debian:buster-slim
+RUN apt update && apt install gcc -y
 COPY . /

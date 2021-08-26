@@ -1,3 +1,3 @@
-FROM alpine
-RUN apk add --no-cache g++
+FROM debian:buster-slim
+RUN apt update && apt install g++ -y
 COPY . /

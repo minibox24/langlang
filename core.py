@@ -18,7 +18,7 @@ import os
 class Languages(Enum):
     BASH = ("bash", "sh")
     C = ("c", "c")
-    CPP = ("cpp", "cc")
+    CPP = ("cpp", "cpp")
     CSHARP = ("csharp", "cs")
     GO = ("go", "go")
     JAVA = ("java", "java")

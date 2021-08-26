@@ -1,1 +1,1 @@
-g++ Main.cc -o Main -O2 -Wall -lm -static -std=gnu++17
+g++ -std=c++17 -lm -o Main Main.cpp
