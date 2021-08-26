@@ -1,2 +1,2 @@
 FROM python:3.9-alpine
-COPY . /
+COPY compile.sh run.sh /

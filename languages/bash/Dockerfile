@@ -1,2 +1,2 @@
 FROM bash
-COPY . /
+COPY compile.sh run.sh /

@@ -1,3 +1,3 @@
 FROM node:alpine
 RUN yarn global add typescript
-COPY . /
+COPY compile.sh run.sh /

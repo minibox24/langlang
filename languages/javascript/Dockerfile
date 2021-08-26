@@ -1,2 +1,2 @@
 FROM node:alpine
-COPY . /
+COPY compile.sh run.sh /

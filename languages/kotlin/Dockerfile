@@ -9,4 +9,4 @@ RUN apt update -y && apt install bash -y && \
     rm kotlin-compiler-*.zip && \
     rm -f kotlinc/bin/*.bat
 ENV PATH $PATH:/usr/lib/kotlinc/bin
-COPY . /
+COPY compile.sh run.sh /
