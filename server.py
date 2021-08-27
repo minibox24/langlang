@@ -20,9 +20,9 @@ def run_eval():
     except ValueError:
         return jsonify({"status": "error", "result": "NOT_SUPPORT_LANGUAGE"}), 400
 
-    input_ = request.json.get("input")
+    inputs = request.json.get("inputs", [])
 
-    status, result = run(client, code, lang, input_)
+    status, result = run(client, code, lang, inputs)
 
     return jsonify({"status": status.value, "result": result})
 

@@ -71,7 +71,7 @@ class ExecThread(Thread):
         return self.result, self.exited
 
 
-def run(client, code, language, input_):
+def run(client, code, language, inputs: list = []):
     name, ext = language.value
 
     status = Status.OK
@@ -88,12 +88,16 @@ def run(client, code, language, input_):
     )
 
     try:
-        if input_:
+        if inputs:
             files = [
                 make_tarinfo(f"Main.{ext}", code),
-                make_tarinfo("input", input_),
-                make_tarinfo("runInput.sh", "/bin/sh /run.sh < /input"),
+                make_tarinfo(
+                    "runInput.sh", "for f in /input*; do /bin/sh run.sh < $f; done"
+                ),
             ]
+
+            for i, content in enumerate(inputs):
+                files.append(make_tarinfo(f"input{i}", content))
 
             container.put_archive("/", make_tarfile(*files))
         else:
@@ -119,7 +123,7 @@ def run(client, code, language, input_):
 
         if done_compile:
             thread = ExecThread(
-                container, f"/bin/sh /{'runInput' if input_ else 'run'}.sh"
+                container, f"/bin/sh /{'runInput' if inputs else 'run'}.sh"
             )
             thread.start()
             raw_result, exited = thread.join(TIMEOUT)
