@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional, List
 
-from core import Languages, run, setup, get_images
+from core import Languages, Runner, setup, get_images
 import docker
 
 
@@ -27,12 +27,19 @@ async def languages():
 
 
 @app.post("/eval")
-def run_eval(data: EvalData):
+async def run_eval(data: EvalData):
     try:
         lang = Languages.find(data.language)
     except ValueError:
         return {"status": "error", "result": "NOT_SUPPORT_LANGUAGE"}, 400
 
-    status, result = run(client, data.code, lang, data.inputs)
+    runner = Runner(client, lang, data.code, data.inputs)
 
-    return {"status": status.value, "result": result}
+    await runner.setup()
+
+    await runner.compile()
+    await runner.run()
+
+    await runner.clear()
+
+    return {"status": runner.status.value, "result": runner.result}
