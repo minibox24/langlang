@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 from core import Languages, run, setup, get_images
-import aiodocker
+import docker
 
 
 class EvalData(BaseModel):
@@ -13,12 +13,17 @@ class EvalData(BaseModel):
 
 
 app = FastAPI()
-docker = aiodocker.Docker()
+client = docker.from_env()
+
+
+@app.on_event("startup")
+async def startup():
+    await setup(client)
 
 
 @app.get("/languages")
 async def languages():
-    return {"languages": await get_images(docker)}
+    return {"languages": await get_images(client)}
 
 
 @app.post("/eval")
@@ -31,6 +36,3 @@ def run_eval(data: EvalData):
     status, result = run(client, data.code, lang, data.inputs)
 
     return {"status": status.value, "result": result}
-
-
-# setup(client)

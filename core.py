@@ -10,6 +10,7 @@ from threading import Thread
 from io import BytesIO
 from enum import Enum
 from config import *
+import asyncio
 import tarfile
 import time
 import os
@@ -170,27 +171,28 @@ def docker_copy_code(container, filename, code):
     container.put_archive("/", make_tarfile(make_tarinfo(filename, code)))
 
 
-async def get_images(docker):
-    return list(
-        map(
-            lambda i: i["RepoTags"][0].split(":")[1],
-            filter(
-                lambda i: i["RepoTags"][0].startswith("langlang:"),
-                await docker.images.list(),
-            ),
-        )
-    )
+async def get_images(client):
+    images = await asyncio.to_thread(client.images.list, name="langlang")
+    return list(map(lambda i: i.tags[0].split(":")[1], images))
 
 
-def setup(client):
+async def setup(client):
     if not os.path.isdir("./temp"):
         print(f"create temp directory")
-        os.mkdir("./temp")
+        await asyncio.to_thread(os.mkdir, "./temp")
 
-    images = get_images(client)
+    images = await get_images(client)
 
-    for lang in os.listdir("./languages"):
-        if lang not in images:
-            print(f"BUILDING {lang}")
-            client.images.build(path=f"./languages/{lang}", tag=f"langlang:{lang}")
-            print(f"BUILT {lang}")
+    async def build(lang):
+        print(f"BUILDING {lang}")
+        await asyncio.to_thread(
+            client.images.build, path=f"./languages/{lang}", tag=f"langlang:{lang}"
+        )
+        print(f"BUILT {lang}")
+
+    await asyncio.gather(
+        *[
+            build(lang)
+            for lang in filter(lambda l: l not in images, os.listdir("./languages"))
+        ]
+    )
