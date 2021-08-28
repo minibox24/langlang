@@ -1,3 +1,6 @@
+fastapi
+uvicorn
 docker
-flask
 six
+
+aiohttp

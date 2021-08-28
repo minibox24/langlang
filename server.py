@@ -1,31 +1,46 @@
-from flask import Flask, request, jsonify
-from core import Languages, run, setup, get_images
+from fastapi import FastAPI, Response
+from pydantic import BaseModel
+from typing import Optional, List
+
+from core import Languages, Runner, setup, get_images
 import docker
 
-app = Flask(__name__)
+
+class EvalData(BaseModel):
+    language: str
+    code: str
+    inputs: Optional[List[str]] = []
+
+
+app = FastAPI()
 client = docker.from_env()
 
 
+@app.on_event("startup")
+async def startup():
+    await setup(client)
+
+
 @app.get("/languages")
-def languages():
-    return jsonify({"languages": get_images(client)})
+async def languages():
+    return {"languages": await get_images(client)}
 
 
 @app.post("/eval")
-def run_eval():
-    code = request.json.get("code", "")
-
+async def run_eval(data: EvalData, response: Response):
     try:
-        lang = Languages.find(request.json.get("language"))
+        lang = Languages.find(data.language)
     except ValueError:
-        return jsonify({"status": "error", "result": "NOT_SUPPORT_LANGUAGE"}), 400
+        response.status_code = 400
+        return {"status": "error", "result": "NOT_SUPPORT_LANGUAGE"}
 
-    inputs = request.json.get("inputs", [])
+    runner = Runner(client, lang, data.code, data.inputs)
 
-    status, result = run(client, code, lang, inputs)
+    await runner.setup()
 
-    return jsonify({"status": status.value, "result": result})
+    await runner.compile()
+    await runner.run()
 
+    await runner.clear()
 
-setup(client)
-app.run(host="0.0.0.0")
+    return {"status": runner.status.value, "result": runner.result}
