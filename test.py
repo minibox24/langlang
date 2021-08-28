@@ -22,7 +22,7 @@ async def test(language):
 
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            "http://localhost:5000/eval",
+            "http://localhost:8000/eval",
             json={"language": language, "code": LANGUAGES[language]},
         ) as res:
             data = await res.json()
