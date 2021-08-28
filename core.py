@@ -118,7 +118,7 @@ class Runner:
                 make_tarinfo(f"Main.{ext}", self.code),
                 make_tarinfo(
                     "runInput.sh",
-                    "for f in $(ls | grep input | sort -V); do echo $f; done",
+                    "for f in $(ls | grep input | sort -V); do /bin/sh run.sh < $f; done",
                 ),
             ]
 
