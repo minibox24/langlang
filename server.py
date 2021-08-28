@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -27,11 +27,12 @@ async def languages():
 
 
 @app.post("/eval")
-async def run_eval(data: EvalData):
+async def run_eval(data: EvalData, response: Response):
     try:
         lang = Languages.find(data.language)
     except ValueError:
-        return {"status": "error", "result": "NOT_SUPPORT_LANGUAGE"}, 400
+        response.status_code = 400
+        return {"status": "error", "result": "NOT_SUPPORT_LANGUAGE"}
 
     runner = Runner(client, lang, data.code, data.inputs)
 
