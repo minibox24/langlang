@@ -170,9 +170,15 @@ def docker_copy_code(container, filename, code):
     container.put_archive("/", make_tarfile(make_tarinfo(filename, code)))
 
 
-def get_images(client):
+async def get_images(docker):
     return list(
-        map(lambda i: i.tags[0].split(":")[1], client.images.list(name="langlang"))
+        map(
+            lambda i: i["RepoTags"][0].split(":")[1],
+            filter(
+                lambda i: i["RepoTags"][0].startswith("langlang:"),
+                await docker.images.list(),
+            ),
+        )
     )
 
 
