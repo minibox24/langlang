@@ -43,4 +43,4 @@ async def run_eval(data: EvalData, response: Response):
 
     await runner.clear()
 
-    return {"status": runner.status.value, "result": runner.result}
+    return {"results": [{"status": r[0].value, "result": r[1]} for r in runner.results]}
