@@ -96,8 +96,8 @@ class Runner:
         self.container = None
 
         self.compile_ok = False
-        self.result = None
-        self.status = Status.OK
+
+        self.results = []
 
     async def setup(self):
         lang, ext = self.language.value
@@ -113,27 +113,19 @@ class Runner:
             network_disabled=True,
         )
 
+        files = [make_tarinfo(f"Main.{ext}", self.code)]
+
         if self.inputs:
-            files = [
-                make_tarinfo(f"Main.{ext}", self.code),
-                make_tarinfo(
-                    "runInput.sh",
-                    "for f in $(ls | grep input | sort -V); do /bin/sh run.sh < $f; done",
-                ),
-            ]
+            files.append(make_tarinfo(f"runInput.sh", "/bin/sh /run.sh < $1"))
 
-            for i, content in enumerate(self.inputs):
-                files.append(make_tarinfo(f"input{i}", content))
+        for i, content in enumerate(self.inputs):
+            files.append(make_tarinfo(f"input{i}", content))
 
-            await asyncio.to_thread(
-                self.container.put_archive, "/", make_tarfile(*files)
-            )
-        else:
-            await asyncio.to_thread(
-                self.container.put_archive,
-                "/",
-                make_tarfile(make_tarinfo(f"Main.{ext}", self.code)),
-            )
+        await asyncio.to_thread(
+            self.container.put_archive,
+            "/",
+            make_tarfile(*files),
+        )
 
     async def compile(self):
         try:
@@ -142,14 +134,13 @@ class Runner:
                 TIMEOUT,
             )
         except asyncio.TimeoutError:
-            self.status = Status.COMPILE_ERROR
+            self.results = [[Status.COMPILE_ERROR, ""]]
             return
 
         result = raw_result.decode().rstrip()
 
         if exit_code != 0:
-            self.status = Status.COMPILE_ERROR
-            self.result = result
+            self.results = [[Status.COMPILE_ERROR, result]]
             return
 
         self.compile_ok = True
@@ -158,24 +149,44 @@ class Runner:
         if not self.compile_ok:
             return
 
-        try:
-            exit_code, raw_result = await asyncio.wait_for(
-                asyncio.to_thread(
-                    self.container.exec_run,
-                    f"/bin/sh /{'runInput' if self.inputs else 'run'}.sh",
-                ),
-                TIMEOUT,
-            )
-        except asyncio.TimeoutError:
-            self.status = Status.TIMEOUT
-            return
+        async def _run(input_index=None):
+            status = Status.OK
+            result = None
 
-        self.result = raw_result.decode().rstrip()
+            try:
+                command = "/bin/sh /run.sh"
+                if input_index is not None:
+                    command = f"/bin/sh /runInput.sh /input{input_index}"
 
-        if exit_code == 137:
-            self.status = Status.MEMORY_OVERFLOW
-        elif exit_code != 0:
-            self.status = Status.ERROR
+                exit_code, raw_result = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        self.container.exec_run,
+                        command,
+                    ),
+                    TIMEOUT,
+                )
+            except asyncio.TimeoutError:
+                status = Status.TIMEOUT
+                return
+
+            result = raw_result.decode().rstrip()
+
+            if exit_code == 137:
+                status = Status.MEMORY_OVERFLOW
+            elif exit_code != 0:
+                status = Status.ERROR
+
+            return status, result
+
+        queue = []
+
+        if self.inputs:
+            for i in range(len(self.inputs)):
+                queue.append(_run(i))
+        else:
+            queue.append(_run())
+
+        self.results = await asyncio.gather(*queue)
 
     async def clear(self, background=True):
         if background:
